@@ -11,3 +11,6 @@ if [ ${TERM} != "dumb" ]; then
     . "$HOME/.bash_ps1"
   fi
 fi
+
+export HOST=`hostname -s`
+export HIGH_LOAD=1

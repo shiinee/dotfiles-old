@@ -1,41 +1,66 @@
-# Fill with minuses
-# (this is recalculated every time the prompt is shown in function prompt_command):
-fill="--- "
+# Prompt will appear like so:
 
+# user@host ---------------------------------------------------------- hh:mm:ss
+# dir $ 
+
+# If user is the omniscient superuser of justice, user will be shown in red.
+# If load average goes above $HIGH_LOAD, hostname will be shown in red.
+
+# If HOST and HIGH_LOAD are not set, set them now
+if [[ -z "$HOST" ]]; then
+    HOST=`hostname -s`
+fi
+if [[ -z "$HIGH_LOAD" ]]; then
+    HIGH_LOAD=1
+fi
+
+# Default fill; will be recalculated in prompt_command below
+fill=" --- "
+
+# Default prompt variable; will be recalculated in prompt_command below
+user_host="$USER@$HOST "
+PS1="$status_style$user_host"'$fill \t\n'"$prompt_style\W \$ $command_style"
+
+# Font colors+styles
 reset_style='\[\033[00m\]'
-status_style=$reset_style'\[\033[0;90m\]' # gray color; use 0;37m for lighter color
+status_style=$reset_style'\[\033[0;90m\]' # gray
 prompt_style=$reset_style
 command_style=$reset_style'\[\033[1;37m\]' # bold white
-# Prompt variable:
+warning_style=$reset_style'\[\033[0;31m\]' # red
 
-OLD_PS1="$PS1"
-PS1="$status_style"'$fill \t\n'"$prompt_style$OLD_PS1$command_style"
-
-# Reset color for command output
-# (this one is invoked every time before a command is executed):
-trap 'echo -ne "\e[0m"' DEBUG
-
+# Reset color after command is submitted, but before command output
+trap 'printf "\e[0m"' DEBUG
 
 function prompt_command {
+    # Default styles for normal conditions
+    user_style=$status_style
+    host_style=$status_style
+    
+    # If user is root, display username in red
+    if [[ $UID -eq 0 ]]; then
+        user_style=$warning_style
+    fi
+    
+    # If load is high, display hostname in red
+    load=`uptime | awk '{print $10}' | cut -f1 -d.`
+    if [[ $load -ge $HIGH_LOAD ]]; then
+        host_style=$warning_style
+    fi
+    
+    # Set user@host string, with and without styles
+    user_host="$USER@$HOST "
+    user_host_styled="$user_style$USER$status_style@$host_style$HOST$status_style "
 
-    # create a $fill of all screen width minus the time string and a space:
-    let fillsize=${COLUMNS}-9
+    # Create a string of dashes the length of the terminal window 
+    # minus the length of the user+host and time
+    let fillsize=${COLUMNS}-${#user_host}-9
     fill=""
-    while [ "$fillsize" -gt "0" ]
+    for (( n=0; n<fillsize; n++ ));
     do
-        fill="-${fill}" # fill with underscores to work on 
-        let fillsize=${fillsize}-1
+        fill="-${fill}"
     done
-
-    # If this is an xterm set the title to user@host:dir
-    case "$TERM" in
-    xterm*|rxvt*)
-        bname=`basename "${PWD/$HOME/~}"`
-        echo -ne "\033]0;${bname}: ${USER}@${HOSTNAME}: ${PWD/$HOME/~}\007"
-        ;;
-    *)
-        ;;
-    esac
-  
+    
+    # Finally, set PS1
+    PS1="$user_host_styled"'$fill \t\n'"$prompt_style\W \$ $command_style"
 }
 PROMPT_COMMAND=prompt_command
