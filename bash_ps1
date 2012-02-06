@@ -42,7 +42,7 @@ function prompt_command {
     fi
     
     # If load is high, display hostname in red
-    load=`uptime | awk '{print $10}' | cut -f1 -d.`
+    load=`cat /proc/loadavg | cut -f 1 -d'.'`
     if [[ $load -ge $HIGH_LOAD ]]; then
         host_style=$warning_style
     fi
